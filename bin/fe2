@@ -6,6 +6,7 @@ shopt -s lastpipe               # last component is exec'd in foreground
 # set -o xtrace
 
 main () {
+    defaults
     options "$@"
     shift $(( optind - 1 ))
     cmd=(grep -r)
@@ -20,6 +21,16 @@ main () {
 
 init () {
     declare -g optind=1
+}
+
+defaults () {
+    declare -g -a allow=()
+    declare -g print_cmd=0
+    declare -g builtin_exclude_dirs=1
+    declare -g builtin_exclude_temp=1
+    declare -g builtin_exclude_binary=1
+    declare -g builtin_exclude_quasi=1
+    declare -g builtin_exclude_unfriendly=1
 }
 
 #------------------------------------------------------------------------------
@@ -143,14 +154,6 @@ append_excludes_includes () {
     (( builtin_exclude_quasi ))      && exclude     "${builtin_exclude_quasi_list[@]}"
     (( builtin_exclude_unfriendly )) && exclude     "${builtin_exclude_unfriendly_list[@]}"
 }
-
-declare -a allow=()
-print_cmd=0
-builtin_exclude_dirs=1
-builtin_exclude_temp=1
-builtin_exclude_binary=1
-builtin_exclude_quasi=1
-builtin_exclude_unfriendly=1
 
 allow () {
     allow+=("$@")

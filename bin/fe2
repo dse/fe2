@@ -1,0 +1,193 @@
+#!/usr/bin/env bash
+set -o errexit                  # exit if any pipeline fails
+set -o nounset                  # set your variables first
+set -o pipefail                 # if one component fails the pipeline fails
+shopt -s lastpipe               # last component is exec'd in foreground
+# set -o xtrace
+
+init () {
+    optind=1
+}
+
+main () {
+    options "$@"
+    shift $(( optind - 1 ))
+    cmd=(grep -r)
+    append_excludes_includes
+    cmd+=("$@")
+    if (( print_cmd )) ; then
+        echo "${cmd[@]}"
+        exit 0
+    fi
+    exec "${cmd[@]}"
+}
+
+#------------------------------------------------------------------------------
+# FILENAME AND DIRECTORY EXCLUSION LISTS
+#------------------------------------------------------------------------------
+
+declare -a builtin_exclude_dirs_list=(
+    'vendor'
+    'node_modules'
+    '.cache'
+    '.cpan'
+    '.git'
+    '.svn'
+    '.sass-cached'
+    '.elpa'
+)
+
+declare -a builtin_exclude_temp_list=(
+    '*~' '#*#' '.*~' '.#*#'
+    '*.bak' '*.tmp' '*.old' '*.orig'
+    '*.bak.*' '*.tmp.*' '*.old.*' '*.orig.*'
+)
+
+declare -a builtin_exclude_binary_list=(
+    '*.zip' '*.jar'
+    '*.gz'
+    '*.docx' '*.xlsx' '*.pptx'
+    '*.ttf' '*.woff' '*.ttc' '*.woff' '*.eot'
+    '*.gif' '*.jpg' '*.jpeg' '*.png' '*.webp' '*.bmp'
+    '*.wav' '*.mp3' '*.aac' '*.wma'
+    '*.mp4' '*.mov' '*.qt' '*.wmv'
+    '*.exe' '*.a' '*.o' '*.so' '*.dll' '*.dylib' '*.elc'
+    '*.class'
+)
+
+declare -a builtin_exclude_quasi_list=(
+    # text files that may contain some amount of binary content
+    '*.pdf'
+    '*.doc'
+    '*.xls'
+    '*.ppt'
+)
+
+declare -a builtin_exclude_unfriendly_list=(
+    # files containing large amounts of extraneous information;
+    # files containing excessively long lines
+    '*.min' '*.min.*' '*.map' '*.map.*'
+    'composer.lock' 'package-lock.json' 'yarn.lock'
+    '*.bundle.js' '*.chunk.js'
+    '*.ps'
+    '*.sfd'
+)
+
+#------------------------------------------------------------------------------
+# OPTIONS
+#------------------------------------------------------------------------------
+
+options () {
+    local optarg
+    local separg
+    local option
+    local shift                 # either 1 or 2
+    while (( $# )) ; do
+        separg=0
+        shift=1
+        option="$1"
+        case "$option" in
+            # Check for options requiring options specified as a
+            # separate argument.
+            --allow)
+                separg=1
+                ;;
+        esac
+        if (( separg )) ; then
+            # Make sure the separate argument exists.
+            if (( $# < 2 )) ; then
+                echo "option missing required argument: $option" >&2
+            fi
+            shift=2
+            optarg="$2"
+            separg=0
+        fi
+        if [[ "$option" = --*=* ]] ; then
+            optarg="${option#*=}"
+            option="${option%%=*}"
+        fi
+        case "$option" in
+            --allow)            allow+=("$optarg");;
+            --allow-dirs)       builtin_exclude_dirs=1;;
+            --allow-temp)       builtin_exclude_temp=1;;
+            --allow-binary)     builtin_exclude_binary=1;;
+            --allow-quasi)      builtin_exclude_quasi=1;;
+            --allow-unfriendly) builtin_exclude_unfriendly=1;;
+            --print-cmd)        print_cmd=1;;
+            --help)             usage; exit 0;;
+            *)                  break;;
+        esac
+        shift "$shift"
+        optind=$(( optind + shift ))
+    done
+}
+
+function usage () { cat <<EOF; }
+usage: fe2 [--print-cmd] [--allow=<pattern>]
+                         [--allow-dirs]
+                         [--allow-temp]
+                         [--allow-binary]
+                         [--allow-quasi]
+                         [--allow-unfriendly]
+                         [ <grep-options> [ <dir>|<file> ... ] ]
+EOF
+
+#------------------------------------------------------------------------------
+# FUNCTIONS
+#------------------------------------------------------------------------------
+
+append_excludes_includes () {
+    (( builtin_exclude_dirs ))       && exclude_dir "${builtin_exclude_dirs_list[@]}"
+    (( builtin_exclude_temp ))       && exclude     "${builtin_exclude_temp_list[@]}"
+    (( builtin_exclude_binary ))     && exclude     "${builtin_exclude_binary_list[@]}"
+    (( builtin_exclude_quasi ))      && exclude     "${builtin_exclude_quasi_list[@]}"
+    (( builtin_exclude_unfriendly )) && exclude     "${builtin_exclude_unfriendly_list[@]}"
+}
+
+declare -a allow=()
+print_cmd=0
+builtin_exclude_dirs=1
+builtin_exclude_temp=1
+builtin_exclude_binary=1
+builtin_exclude_quasi=1
+builtin_exclude_unfriendly=1
+
+allow () {
+    allow+=("$@")
+}
+
+exclude_dir () {
+    local i
+    for i in "$@" ; do
+        if is_member "$i" "${allow[@]}" ; then continue ; fi
+        cmd+=("--exclude-dir=$i")
+    done
+}
+
+exclude () {
+    local i
+    for i in "$@" ; do
+        if is_member "$i" "${allow[@]}" ; then continue ; fi
+        cmd+=("--exclude=$i")
+    done
+}
+
+#------------------------------------------------------------------------------
+# UTILITIES
+#------------------------------------------------------------------------------
+
+is_member () {
+    if (( ! $# )) ; then return 0 ; fi
+    local member="$1"; shift
+    local i
+    for i ; do
+        if [[ "$i" = "$member" ]] ; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+###############################################################################
+init
+main "$@"

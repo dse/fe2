@@ -5,10 +5,6 @@ set -o pipefail                 # if one component fails the pipeline fails
 shopt -s lastpipe               # last component is exec'd in foreground
 # set -o xtrace
 
-init () {
-    optind=1
-}
-
 main () {
     options "$@"
     shift $(( optind - 1 ))
@@ -20,6 +16,10 @@ main () {
         exit 0
     fi
     exec "${cmd[@]}"
+}
+
+init () {
+    declare -g optind=1
 }
 
 #------------------------------------------------------------------------------

@@ -6,6 +6,7 @@ shopt -s lastpipe               # last component is exec'd in foreground
 # set -o xtrace
 
 main () {
+    init
     defaults
     options "$@"
     shift $(( optind - 1 ))

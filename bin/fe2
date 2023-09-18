@@ -5,6 +5,16 @@ set -o pipefail                 # if one component fails the pipeline fails
 shopt -s lastpipe               # last component is exec'd in foreground
 # set -o xtrace
 
+# 256 characters
+long_line_filter="................................"
+long_line_filter="${long_line_filter}................................"
+long_line_filter="${long_line_filter}................................"
+long_line_filter="${long_line_filter}................................"
+long_line_filter="${long_line_filter}................................"
+long_line_filter="${long_line_filter}................................"
+long_line_filter="${long_line_filter}................................"
+long_line_filter="${long_line_filter}................................"
+
 main () {
     init
     defaults
@@ -12,12 +22,28 @@ main () {
     shift $(( optind - 1 ))
     cmd=(grep -r)
     append_excludes_includes
-    cmd+=("$@")
+    grep_args=("$@")
+
+    local grep='grep'
+    if [[ "$OSTYPE" = "darwin"* ]] && command -v ggrep >/dev/null 2>/dev/null ; then
+        grep='ggrep'
+    fi
+
+    grep+=(-I)     # exclude additional binary files for good measure.
+
+    if [[ "${TERM}" = "emacs-grep" ]] ; then
+        # emacs M-x find-grep
+        grep_args=(--color -n -H "${grep_args[@]}")
+    elif [[ "${TERM}" = "dumb" ]] && [[ -v INSIDE_EMACS ]] && [[ -n "${INSIDE_EMACS}" ]] ; then
+        # emacs interactive shell
+        grep_args=(--color -n -H "${grep_args[@]}")
+    fi
+
     if (( print_cmd )) ; then
-        echo "${cmd[@]}"
+        echo "${cmd[@]}" "${grep_args[@]}"
         exit 0
     fi
-    exec "${cmd[@]}"
+    "${cmd[@]}" "${grep_args[@]}" | grep -v "${long_line_filter}"
 }
 
 init () {
@@ -32,6 +58,7 @@ defaults () {
     declare -g builtin_exclude_binary=1
     declare -g builtin_exclude_quasi=1
     declare -g builtin_exclude_unfriendly=1
+    declare -g -a grep_args
 }
 
 #------------------------------------------------------------------------------

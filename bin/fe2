@@ -5,15 +5,12 @@ set -o pipefail                 # if one component fails the pipeline fails
 shopt -s lastpipe               # last component is exec'd in foreground
 # set -o xtrace
 
-# 256 characters
-long_line_filter="................................"
-long_line_filter="${long_line_filter}................................"
-long_line_filter="${long_line_filter}................................"
-long_line_filter="${long_line_filter}................................"
-long_line_filter="${long_line_filter}................................"
-long_line_filter="${long_line_filter}................................"
-long_line_filter="${long_line_filter}................................"
-long_line_filter="${long_line_filter}................................"
+long_line_filter="................................" # 32 characters
+long_line_filter="${long_line_filter}${long_line_filter}" # 64
+long_line_filter="${long_line_filter}${long_line_filter}" # 128
+long_line_filter="${long_line_filter}${long_line_filter}" # 256
+long_line_filter="${long_line_filter}${long_line_filter}" # 512
+long_line_filter="${long_line_filter}${long_line_filter}" # 1024
 
 main () {
     init

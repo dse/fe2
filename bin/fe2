@@ -1,221 +1,302 @@
 #!/usr/bin/env bash
-set -o errexit                  # exit if any pipeline fails
-set -o nounset                  # set your variables first
-set -o pipefail                 # if one component fails the pipeline fails
-shopt -s lastpipe               # last component is exec'd in foreground
-# set -o xtrace
-
-long_line_filter="................................" # 32 characters
-long_line_filter="${long_line_filter}${long_line_filter}" # 64
-long_line_filter="${long_line_filter}${long_line_filter}" # 128
-long_line_filter="${long_line_filter}${long_line_filter}" # 256
-long_line_filter="${long_line_filter}${long_line_filter}" # 512
-long_line_filter="${long_line_filter}${long_line_filter}" # 1024
+set -o errexit
+set -o pipefail
+set -o nounset
 
 main () {
-    init
-    defaults
-    options "$@"
-    shift $(( optind - 1 ))
-    cmd=(grep -r)
-    append_excludes_includes
-    grep_args=("$@")
+    long_lines_filter="................................" # 32 characters
+    long_lines_filter="${long_lines_filter}${long_lines_filter}" # 64
+    long_lines_filter="${long_lines_filter}${long_lines_filter}" # 128
+    long_lines_filter="${long_lines_filter}${long_lines_filter}" # 256
+    long_lines_filter="${long_lines_filter}${long_lines_filter}" # 512
+    long_lines_filter="${long_lines_filter}${long_lines_filter}" # 1024
 
-    local grep='grep'
-    if [[ "$OSTYPE" = "darwin"* ]] && command -v ggrep >/dev/null 2>/dev/null ; then
-        grep='ggrep'
+    set_default_excludes
+    declare -a -g include=()
+    declare -a -g grep_binary=(-I)
+
+    grep=grep
+    if type -P ggrep >&/dev/null ; then
+        grep=ggrep
     fi
 
-    grep+=(-I)     # exclude additional binary files for good measure.
+    opt_binary=0
+    opt_find=0
+    opt_command=0
+    opt_long_lines=0
 
-    if [[ "${TERM}" = "emacs-grep" ]] ; then
-        # emacs M-x find-grep
-        grep_args=(--color -n -H "${grep_args[@]}")
-    elif [[ "${TERM}" = "dumb" ]] && [[ -v INSIDE_EMACS ]] && [[ -n "${INSIDE_EMACS}" ]] ; then
-        # emacs interactive shell
-        grep_args=(--color -n -H "${grep_args[@]}")
-    fi
+    local OPTIND=1 OPTION OPTERR=1 OPTARG
+    while getopts 'h:-:.:*:' OPTION ; do
+        if [[ "${OPTION}" = "-" ]] ; then
+            if [[ "${OPTARG}" = *= ]] ; then
+                OPTIND=$((OPTIND + 1))
+                if (( OPTIND > $# )) ; then
+                    echo "option missing argument -- ${OPTARG%=}"
+                    exit 1
+                fi
+                OPTARG="${!OPTIND}"
+            elif [[ "${OPTARG}" = *=* ]] ; then
+                OPTION="${OPTARG%%=*}"
+                OPTARG="${OPTARG#*=}"
+            else
+                OPTION="${OPTARG}"
+                unset OPTARG
+            fi
+        fi
+        case "${OPTION}" in
 
-    if (( print_cmd )) ; then
-        echo "${cmd[@]}" "${grep_args[@]}"
-        exit 0
-    fi
-    "${cmd[@]}" "${grep_args[@]}" | grep -v "${long_line_filter}"
-}
+            # exclusions
+            vendor)         exclude_dir__vendor=();;
+            git|vcs)        exclude_dir__vcs=();;
+            cache)          exclude_dir__cache=()
+                            exclude__cache=();;
+            backup)         exclude__backup=();;
+            temp)           exclude__temp=();;
+            bloat)          exclude__bloat=();;
+            quasi|office)   exclude__quasi=();;
+            all)            exclude_dir__vendor=()
+                            exclude_dir__vcs=()
+                            exclude_dir__cache=()
+                            exclude__backup=()
+                            exclude__temp=()
+                            exclude__bloat=()
+                            exclude__cache=()
+                            exclude__quasi=();;
 
-init () {
-    declare -g optind=1
-}
+            find)           opt_find=1;;
+            command)        opt_command=1;;
+            long-lines)     opt_long_lines=1;;
 
-defaults () {
-    declare -g -a allow=()
-    declare -g print_cmd=0
-    declare -g builtin_exclude_dirs=1
-    declare -g builtin_exclude_temp=1
-    declare -g builtin_exclude_binary=1
-    declare -g builtin_exclude_quasi=1
-    declare -g builtin_exclude_unfriendly=1
-    declare -g -a grep_args
-}
-
-#------------------------------------------------------------------------------
-# FILENAME AND DIRECTORY EXCLUSION LISTS
-#------------------------------------------------------------------------------
-
-declare -a builtin_exclude_dirs_list=(
-    'vendor'
-    'node_modules'
-    '.cache'
-    '.cpan'
-    '.git'
-    '.svn'
-    '.sass-cached'
-    '.elpa'
-)
-
-declare -a builtin_exclude_temp_list=(
-    '*~' '#*#' '.*~' '.#*#'
-    '*.bak' '*.tmp' '*.old' '*.orig'
-    '*.bak.*' '*.tmp.*' '*.old.*' '*.orig.*'
-)
-
-declare -a builtin_exclude_binary_list=(
-    '*.zip' '*.jar'
-    '*.gz'
-    '*.docx' '*.xlsx' '*.pptx'
-    '*.ttf' '*.woff' '*.ttc' '*.woff' '*.eot'
-    '*.gif' '*.jpg' '*.jpeg' '*.png' '*.webp' '*.bmp'
-    '*.wav' '*.mp3' '*.aac' '*.wma'
-    '*.mp4' '*.mov' '*.qt' '*.wmv'
-    '*.exe' '*.a' '*.o' '*.so' '*.dll' '*.dylib' '*.elc'
-    '*.class'
-)
-
-declare -a builtin_exclude_quasi_list=(
-    # text files that may contain some amount of binary content
-    '*.pdf'
-    '*.doc'
-    '*.xls'
-    '*.ppt'
-)
-
-declare -a builtin_exclude_unfriendly_list=(
-    # files containing large amounts of extraneous information;
-    # files containing excessively long lines
-    '*.min' '*.min.*' '*.map' '*.map.*'
-    'composer.lock' 'package-lock.json' 'yarn.lock'
-    '*.bundle.js' '*.chunk.js'
-    '*.ps'
-    '*.sfd'
-)
-
-#------------------------------------------------------------------------------
-# OPTIONS
-#------------------------------------------------------------------------------
-
-options () {
-    local optarg
-    local separg
-    local option
-    local shift                 # either 1 or 2
-    while (( $# )) ; do
-        separg=0
-        shift=1
-        option="$1"
-        case "$option" in
-            # Check for options requiring options specified as a
-            # separate argument.
-            --allow)
-                separg=1
+            '.')                # e.g., -.js -'.min.*'
+                if [[ ! -v OPTARG ]] ; then
+                    echo "option requires argument -- ${OPTION}" >&2
+                    exit 1
+                fi
+                case "${OPTARG}" in
+                    html|htm)
+                        include+=(--include="*.html"
+                                  --include="*.htm")
+                        ;;
+                    js)
+                        include+=(--include="*.js"
+                                  --include="*.cjs"
+                                  --include="*.mjs"
+                                  --include="*.ts"
+                                  --include="*.jsx")
+                        ;;
+                    css)
+                        include+=(--include="*.css"
+                                  --include="*.scss")
+                        ;;
+                    *)
+                        include+=(--include="*.${OPTARG}")
+                        unexclude "*.${OPTARG}"
+                        ;;
+                esac
+                ;;
+            allow)              # --allow='*.tmp'
+                if [[ ! -v OPTARG ]] ; then
+                    echo "option requires argument -- ${OPTION}" >&2
+                    exit 1
+                fi
+                unexclude "${OPTARG}"
+                ;;
+            binary)
+                binary=$((binary + 1))
+                if (( binary == 1 )) ; then
+                    grep_binary=()
+                elif (( binary == 2 )) ; then
+                    # --binary --binary
+                    grep_binary=(-a)
+                fi
+                ;;
+            grep)               # --grep or --grep=<grep>
+                if [[ -v OPTARG ]] && [[ "$OPTARG" != "" ]] ; then
+                    grep=${OPTARG}
+                else
+                    grep=grep
+                fi
+                ;;
+            excluded)
+                for exclude in \
+                    "${exclude_dir__vendor[@]}" \
+                    "${exclude_dir__vcs[@]}" \
+                    "${exclude_dir__cache[@]}" \
+                    "${exclude__backup[@]}" \
+                    "${exclude__temp[@]}" \
+                    "${exclude__bloat[@]}" \
+                    "${exclude__cache[@]}" \
+                    "${exclude__quasi[@]}" ; do
+                    echo "${exclude}"
+                done
+                exit 0
+                ;;
+            help)
+                help
+                exit 0
+                ;;
+            '?')                # invalid short opt; msg was printed
+                exit 1
+                ;;
+            *)                  # invalid long opt; pass to grep
+                OPTIND=$((OPTIND - 1))
+                break
                 ;;
         esac
-        if (( separg )) ; then
-            # Make sure the separate argument exists.
-            if (( $# < 2 )) ; then
-                echo "option missing required argument: $option" >&2
-            fi
-            shift=2
-            optarg="$2"
-            separg=0
-        fi
-        if [[ "$option" = --*=* ]] ; then
-            optarg="${option#*=}"
-            option="${option%%=*}"
-        fi
-        case "$option" in
-            --allow)            allow+=("$optarg");;
-            --allow-dirs)       builtin_exclude_dirs=1;;
-            --allow-temp)       builtin_exclude_temp=1;;
-            --allow-binary)     builtin_exclude_binary=1;;
-            --allow-quasi)      builtin_exclude_quasi=1;;
-            --allow-unfriendly) builtin_exclude_unfriendly=1;;
-            --print-cmd)        print_cmd=1;;
-            --help)             usage; exit 0;;
-            *)                  break;;
-        esac
-        shift "$shift"
-        optind=$(( optind + shift ))
     done
+    shift $((OPTIND - 1))
+
+    if (( opt_find )) ; then
+        # List files that would be searched; ignore grep options and
+        # arguments specified on command line
+        set -- -l -e '^$' -e '.' "$@"
+    fi
+
+    declare -a -g grep_command=(
+        $grep
+        "${exclude_dir__vendor[@]}"
+        "${exclude_dir__vcs[@]}"
+        "${exclude_dir__cache[@]}"
+        "${exclude__backup[@]}"
+        "${exclude__temp[@]}"
+        "${exclude__bloat[@]}"
+        "${exclude__cache[@]}"
+        "${exclude__quasi[@]}"
+        "${include[@]}"
+        "${grep_binary[@]}"
+        -r "$@"
+    )
+    declare -a -g long_lines_cmd=(
+        grep -v "${long_lines_filter}"
+    )
+
+    if (( opt_command )) ; then
+        if (( opt_long_lines )) ; then
+            echo "${grep_command[@]@Q}"
+        else
+            echo "${grep_command[@]@Q} | ${long_lines_cmd[@]@Q}"
+        fi
+        exit 0
+    fi
+    if (( opt_long_lines )) ; then
+        exec "${grep_command[@]}"
+    else
+        "${grep_command[@]}" | "${long_lines_cmd[@]}"
+    fi
 }
 
-function usage () { cat <<EOF; }
-usage: fe2 [--print-cmd] [--allow=<pattern>]
-                         [--allow-dirs]
-                         [--allow-temp]
-                         [--allow-binary]
-                         [--allow-quasi]
-                         [--allow-unfriendly]
-                         [ <grep-options> [ <dir>|<file> ... ] ]
+unexclude () {
+    local glob="$1"; shift
+    unexclude_from exclude_dir__vendor "--exclude-dir=${glob}"
+    unexclude_from exclude_dir__vcs    "--exclude-dir=${glob}"
+    unexclude_from exclude_dir__cache  "--exclude-dir=${glob}"
+    unexclude_from exclude__backup     "--exclude=${glob}"
+    unexclude_from exclude__temp       "--exclude=${glob}"
+    unexclude_from exclude__bloat      "--exclude=${glob}"
+    unexclude_from exclude__cache      "--exclude=${glob}"
+    unexclude_from exclude__quasi      "--exclude=${glob}"
+}
+
+unexclude_from () {
+    local varname="$1"; shift
+    local -n var="${varname}"
+    local member="$1"; shift
+    local -a temp_array=()
+    local arg
+    for arg in "${var[@]}" ; do
+        if [[ "${arg}" != "${member}" ]] ; then
+            temp_array+=("${arg}")
+        fi
+    done
+    var=("${temp_array[@]}")
+}
+
+set_default_excludes () {
+    declare -a -g exclude_dir__vendor=(
+        --exclude-dir='node_modules'
+        --exclude-dir='vendor'
+    )
+    declare -a -g exclude_dir__vcs=(
+        --exclude-dir='.git'
+        --exclude-dir='.svn'
+        --exclude-dir='SCCS'
+        --exclude-dir='RCS'
+        --exclude-dir='CVS'
+        --exclude-dir='MCVS'
+        --exclude-dir='.src'
+        --exclude-dir='.hg'
+        --exclude-dir='.bzr'
+        --exclude-dir='_MTN'
+        --exclude-dir='_darcs'
+        --exclude-dir='{arch}'
+    )
+    declare -a -g exclude_dir__cache=(
+        --exclude-dir='.cache'
+        --exclude-dir='npm-cache'
+        --exclude-dir='.sass-cache'
+        --exclude-dir='zip-cache'
+        --exclude-dir='.cpan'
+    )
+    declare -a -g exclude__backup=(
+        --exclude='*~'
+        --exclude='#*#'
+        --exclude='*.bak'
+        --exclude='*.bak.*'
+        --exclude='*.old'
+        --exclude='*.old.*'
+        --exclude='*.orig'
+        --exclude='*.orig.*'
+        --exclude='*-orig'
+        --exclude='*-orig.*'
+    )
+    declare -a -g exclude__temp=(
+        --exclude='*.tmp'
+        --exclude='*.tmp.*'
+    )
+    declare -a -g exclude__bloat=(
+        --exclude='*.min'
+        --exclude='*.min.*'
+        --exclude='*.map'
+        --exclude='*.map.*'
+        --exclude='composer.lock'
+        --exclude='yarn.lock'
+        --exclude='package-lock.json'
+        --exclude='*.bundle.js'
+        --exclude='*.chunk.js'
+    )
+    declare -a -g exclude__cache=(
+        --exclude='projectile.cache' # emacs
+        --exclude='ido.last'         # emacs
+    )
+    declare -a -g exclude__quasi=(
+        --exclude='*.xls'
+        --exclude='*.doc'
+        --exclude='*.ppt'
+        --exclude='*.pdf'
+        --exclude='*.ps'
+    )
+}
+
+help () { cat <<EOF; }
+fe [<option> ...] [<grep options and arguments> ...]
+   --vendor             allow vendor, node_modules, etc.
+   --vcs, --git         allow .git, .svn, etc.
+   --cache              allow cache directories and files
+   --backup, --temp     allow backup and/or temporary files
+   --bloat              allow annoying large files
+   --quasi, --office    allow office files, etc.
+   --allow=<files>      removed specified exclusion
+   -.<ext>              include ONLY specified files (also un-excludes)
+                            -.html, -.js, -.css include multiple extensions
+   --all                remove all exclusions (except binaries)
+   --binary             grep binary files as normal (excluded by default)
+   --binary --binary    grep binary files as if text
+   --grep=<grep>        program to invoke instead of grep or ggrep
+   --long-lines         don't exclude long lines from output
+   --command            print grep command that would execute
+   --excluded           list directory and file exclusions
+   --find               list files that would be grepped
 EOF
 
-#------------------------------------------------------------------------------
-# FUNCTIONS
-#------------------------------------------------------------------------------
-
-append_excludes_includes () {
-    (( builtin_exclude_dirs ))       && exclude_dir "${builtin_exclude_dirs_list[@]}"
-    (( builtin_exclude_temp ))       && exclude     "${builtin_exclude_temp_list[@]}"
-    (( builtin_exclude_binary ))     && exclude     "${builtin_exclude_binary_list[@]}"
-    (( builtin_exclude_quasi ))      && exclude     "${builtin_exclude_quasi_list[@]}"
-    (( builtin_exclude_unfriendly )) && exclude     "${builtin_exclude_unfriendly_list[@]}"
-}
-
-allow () {
-    allow+=("$@")
-}
-
-exclude_dir () {
-    local i
-    for i in "$@" ; do
-        if is_member "$i" "${allow[@]}" ; then continue ; fi
-        cmd+=("--exclude-dir=$i")
-    done
-}
-
-exclude () {
-    local i
-    for i in "$@" ; do
-        if is_member "$i" "${allow[@]}" ; then continue ; fi
-        cmd+=("--exclude=$i")
-    done
-}
-
-#------------------------------------------------------------------------------
-# UTILITIES
-#------------------------------------------------------------------------------
-
-is_member () {
-    if (( ! $# )) ; then return 0 ; fi
-    local member="$1"; shift
-    local i
-    for i ; do
-        if [[ "$i" = "$member" ]] ; then
-            return 0
-        fi
-    done
-    return 1
-}
-
 ###############################################################################
-init
 main "$@"

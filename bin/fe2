@@ -20,7 +20,8 @@ main () {
         grep=ggrep
     fi
 
-    opt_binary=0
+    opt_binary=0                # detect --binary --binary
+    opt_all=0                   # detect --all --all [--all]
     opt_find=0
     opt_command=0
     opt_long_lines=0
@@ -54,15 +55,23 @@ main () {
             temp)           exclude__temp=();;
             bloat)          exclude__bloat=();;
             quasi|office)   exclude__quasi=();;
-            all)            exclude_dir__vendor=()
-                            exclude_dir__vcs=()
-                            exclude_dir__cache=()
-                            exclude__backup=()
-                            exclude__temp=()
-                            exclude__bloat=()
-                            exclude__cache=()
-                            exclude__quasi=();;
-
+            all)
+                opt_all=$((opt_all + 1))
+                if (( opt_all == 1 )) ; then
+                    exclude_dir__vendor=()
+                    exclude_dir__vcs=()
+                    exclude_dir__cache=()
+                    exclude__backup=()
+                    exclude__temp=()
+                    exclude__bloat=()
+                    exclude__cache=()
+                    exclude__quasi=()
+                elif (( opt_all >= 2 )) ; then # --all --all
+                    grep_binary=()
+                elif (( opt_all >= 3 )) ; then # --all --all --all
+                    grep_binary=(-a)
+                fi
+                ;;
             find)           opt_find=1;;
             command)        opt_command=1;;
             long-lines)     opt_long_lines=1;;
@@ -102,11 +111,10 @@ main () {
                 unexclude "${OPTARG}"
                 ;;
             binary)
-                binary=$((binary + 1))
-                if (( binary == 1 )) ; then
+                opt_binary=$((opt_binary + 1))
+                if (( opt_binary == 1 )) ; then
                     grep_binary=()
-                elif (( binary == 2 )) ; then
-                    # --binary --binary
+                elif (( opt_binary == 2 )) ; then # --binary --binary
                     grep_binary=(-a)
                 fi
                 ;;
@@ -289,6 +297,8 @@ fe [<option> ...] [<grep options and arguments> ...]
    -.<ext>              include ONLY specified files (also un-excludes)
                             -.html, -.js, -.css include multiple extensions
    --all                remove all exclusions (except binaries)
+   --all --all          " but also allow binaries too
+   --all --all --all    " but also grep binary files as text
    --binary             grep binary files as normal (excluded by default)
    --binary --binary    grep binary files as if text
    --grep=<grep>        program to invoke instead of grep or ggrep

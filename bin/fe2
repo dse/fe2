@@ -273,6 +273,7 @@ declare -a exclude_dir__cache=(
     --exclude-dir='zip-cache'
     --exclude-dir='.cpan'
     --exclude-dir='_cacache'    # ~/.npm/_cache
+    --exclude-dir='elpa'        # emacs
 )
 declare -a exclude__backup=(
     --exclude='*~'

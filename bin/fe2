@@ -39,7 +39,7 @@ main () {
     opt_excluded=0
 
     local OPTIND=1 OPTION OPTERR=1 OPTARG
-    while getopts '.:-:*:' OPTION ; do
+    while getopts '.:-:' OPTION ; do
         if [[ "${OPTION}" = "-" ]] ; then
             if [[ "${OPTARG}" = *= ]] ; then
                 OPTIND=$((OPTIND + 1))

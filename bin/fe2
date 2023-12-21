@@ -60,21 +60,21 @@ main () {
         case "${OPTION}" in
 
             # control exclusions
-            vendor)       opt_vendor=$((opt_vendor+1));;
-            git|vcs)      opt_vcs=$((opt_vcs+1));;
-            cache)        opt_cache=$((opt_cache+1));;
-            backup)       opt_backup=$((opt_backup+1));;
-            temp)         opt_temp=$((opt_temp+1));;
-            bloat)        opt_bloat=$((opt_bloat+1));;
-            quasi|office) opt_quasi=$((opt_quasi+1));;
-            all)          opt_all=$((opt_all+1));;
-            binary)       opt_binary=$((opt_binary+1));;
+            vendor)       opt_vendor=$((opt_vendor + 1));;
+            git|vcs)      opt_vcs=$((opt_vcs + 1));;
+            cache)        opt_cache=$((opt_cache + 1));;
+            backup)       opt_backup=$((opt_backup + 1));;
+            temp)         opt_temp=$((opt_temp + 1));;
+            bloat)        opt_bloat=$((opt_bloat + 1));;
+            quasi|office) opt_quasi=$((opt_quasi + 1));;
+            all)          opt_all=$((opt_all + 1));;
+            binary)       opt_binary=$((opt_binary + 1));;
 
             # control mode of operation
-            find)         opt_find=$((opt_find+1));;
-            command)      opt_command=$((opt_command+1));;
-            long-lines)   opt_long_lines=$((opt_long_lines+1));;
-            excluded)     opt_excluded=$((opt_excluded+1));;
+            find)         opt_find=$((opt_find + 1));;
+            command)      opt_command=$((opt_command + 1));;
+            long-lines)   opt_long_lines=$((opt_long_lines + 1));;
+            excluded)     opt_excluded=$((opt_excluded + 1));;
 
             '.')                # e.g., -.js -'.min.*'
                 if [[ ! -v OPTARG ]] ; then

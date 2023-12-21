@@ -3,6 +3,9 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
+# last cmd in pipeline is 'grep "^"'; we want ITS return value.
+shopt -s lastpipe
+
 main () {
     long_lines_filter="................................" # 32 characters
     long_lines_filter="${long_lines_filter}${long_lines_filter}" # 64
@@ -211,7 +214,7 @@ main () {
         if (( opt_long_lines )) ; then
             echo "${grep_command[@]@Q}"
         else
-            echo "${grep_command[@]@Q} | ${long_lines_cmd[@]@Q}"
+            echo "${grep_command[@]@Q} | ${long_lines_cmd[@]@Q} | grep ^"
         fi
         exit 0
     fi
@@ -224,7 +227,7 @@ main () {
     if (( opt_long_lines )) ; then
         exec "${grep_command[@]}"
     else
-        "${grep_command[@]}" | "${long_lines_cmd[@]}"
+        "${grep_command[@]}" | "${long_lines_cmd[@]}" | grep "^"
     fi
 }
 

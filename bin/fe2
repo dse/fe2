@@ -128,11 +128,6 @@ main () {
     done
     shift $((OPTIND - 1))
 
-    if (( !$# )) ; then
-        echo "fe2: no arguments" >&2
-        exit 1
-    fi
-
     (( opt_vendor ))  && exclude_dir__vendor=()
     (( opt_vcs ))     && exclude_dir__vcs=()
     (( opt_cache ))   && exclude_dir__cache=()
@@ -211,6 +206,12 @@ main () {
         fi
         exit 0
     fi
+
+    if (( !$# )) ; then
+        echo "fe2: no arguments" >&2
+        exit 1
+    fi
+
     if (( opt_long_lines )) ; then
         exec "${grep_command[@]}"
     else
@@ -268,6 +269,7 @@ declare -a exclude_dir__cache=(
     --exclude-dir='.sass-cache'
     --exclude-dir='zip-cache'
     --exclude-dir='.cpan'
+    --exclude-dir='_cacache'    # ~/.npm/_cache
 )
 declare -a exclude__backup=(
     --exclude='*~'

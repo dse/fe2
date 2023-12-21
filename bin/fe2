@@ -26,8 +26,18 @@ main () {
     opt_command=0
     opt_long_lines=0
 
+    opt_vendor=0
+    opt_vcs=0
+    opt_cache=0
+    opt_backup=0
+    opt_temp=0
+    opt_bloat=0
+    opt_quasi=0
+    opt_all=0
+    opt_excluded=0
+
     local OPTIND=1 OPTION OPTERR=1 OPTARG
-    while getopts 'h:-:.:*:' OPTION ; do
+    while getopts '.:-:*:' OPTION ; do
         if [[ "${OPTION}" = "-" ]] ; then
             if [[ "${OPTARG}" = *= ]] ; then
                 OPTIND=$((OPTIND + 1))
@@ -46,35 +56,22 @@ main () {
         fi
         case "${OPTION}" in
 
-            # exclusions
-            vendor)         exclude_dir__vendor=();;
-            git|vcs)        exclude_dir__vcs=();;
-            cache)          exclude_dir__cache=()
-                            exclude__cache=();;
-            backup)         exclude__backup=();;
-            temp)           exclude__temp=();;
-            bloat)          exclude__bloat=();;
-            quasi|office)   exclude__quasi=();;
-            all)
-                opt_all=$((opt_all + 1))
-                if (( opt_all == 1 )) ; then
-                    exclude_dir__vendor=()
-                    exclude_dir__vcs=()
-                    exclude_dir__cache=()
-                    exclude__backup=()
-                    exclude__temp=()
-                    exclude__bloat=()
-                    exclude__cache=()
-                    exclude__quasi=()
-                elif (( opt_all >= 2 )) ; then # --all --all
-                    grep_binary=()
-                elif (( opt_all >= 3 )) ; then # --all --all --all
-                    grep_binary=(-a)
-                fi
-                ;;
-            find)           opt_find=1;;
-            command)        opt_command=1;;
-            long-lines)     opt_long_lines=1;;
+            # control exclusions
+            vendor)       opt_vendor=$((opt_vendor+1));;
+            git|vcs)      opt_vcs=$((opt_vcs+1));;
+            cache)        opt_cache=$((opt_cache+1));;
+            backup)       opt_backup=$((opt_backup+1));;
+            temp)         opt_temp=$((opt_temp+1));;
+            bloat)        opt_bloat=$((opt_bloat+1));;
+            quasi|office) opt_quasi=$((opt_quasi+1));;
+            all)          opt_all=$((opt_all+1));;
+            binary)       opt_binary=$((opt_binary+1));;
+
+            # control mode of operation
+            find)         opt_find=$((opt_find+1));;
+            command)      opt_command=$((opt_command+1));;
+            long-lines)   opt_long_lines=$((opt_long_lines+1));;
+            excluded)     opt_excluded=$((opt_excluded+1));;
 
             '.')                # e.g., -.js -'.min.*'
                 if [[ ! -v OPTARG ]] ; then
@@ -110,34 +107,12 @@ main () {
                 fi
                 unexclude "${OPTARG}"
                 ;;
-            binary)
-                opt_binary=$((opt_binary + 1))
-                if (( opt_binary == 1 )) ; then
-                    grep_binary=()
-                elif (( opt_binary == 2 )) ; then # --binary --binary
-                    grep_binary=(-a)
-                fi
-                ;;
             grep)               # --grep or --grep=<grep>
                 if [[ -v OPTARG ]] && [[ "$OPTARG" != "" ]] ; then
                     grep=${OPTARG}
                 else
                     grep=grep
                 fi
-                ;;
-            excluded)
-                for exclude in \
-                    "${exclude_dir__vendor[@]}" \
-                    "${exclude_dir__vcs[@]}" \
-                    "${exclude_dir__cache[@]}" \
-                    "${exclude__backup[@]}" \
-                    "${exclude__temp[@]}" \
-                    "${exclude__bloat[@]}" \
-                    "${exclude__cache[@]}" \
-                    "${exclude__quasi[@]}" ; do
-                    echo "${exclude}"
-                done
-                exit 0
                 ;;
             help)
                 help
@@ -153,6 +128,56 @@ main () {
         esac
     done
     shift $((OPTIND - 1))
+
+    if (( !$# )) ; then
+        echo "fe2: no arguments" >&2
+        exit 1
+    fi
+
+    (( opt_vendor ))  && exclude_dir__vendor=()
+    (( opt_vcs ))     && exclude_dir__vcs=()
+    (( opt_cache ))   && exclude_dir__cache=()
+    (( opt_cache ))   && exclude__cache=()
+    (( opt_backup ))  && exclude__backup=()
+    (( opt_temp ))    && exclude__temp=()
+    (( opt_bloat ))   && exclude__bloat=()
+    (( opt_quasi ))   && exclude__quasi=()
+
+    if (( opt_all == 1 )) ; then
+        exclude_dir__vendor=()
+        exclude_dir__vcs=()
+        exclude_dir__cache=()
+        exclude__backup=()
+        exclude__temp=()
+        exclude__bloat=()
+        exclude__cache=()
+        exclude__quasi=()
+    elif (( opt_all >= 2 )) ; then # --all --all
+        grep_binary=()
+    elif (( opt_all >= 3 )) ; then # --all --all --all
+        grep_binary=(-a)
+    fi
+
+    if (( opt_binary == 1 )) ; then
+        grep_binary=()
+    elif (( opt_binary == 2 )) ; then # --binary --binary
+        grep_binary=(-a)
+    fi
+
+    if (( opt_excluded )) ; then
+        for exclude in \
+            "${exclude_dir__vendor[@]}" \
+                "${exclude_dir__vcs[@]}" \
+                "${exclude_dir__cache[@]}" \
+                "${exclude__backup[@]}" \
+                "${exclude__temp[@]}" \
+                "${exclude__bloat[@]}" \
+                "${exclude__cache[@]}" \
+                "${exclude__quasi[@]}" ; do
+            echo "${exclude}"
+        done
+        exit 0
+    fi
 
     if (( opt_find )) ; then
         # List files that would be searched; ignore grep options and
@@ -174,6 +199,7 @@ main () {
         "${grep_binary[@]}"
         -r "$@"
     )
+
     declare -a -g long_lines_cmd=(
         grep -v "${long_lines_filter}"
     )

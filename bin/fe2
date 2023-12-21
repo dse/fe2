@@ -7,12 +7,9 @@ set -o nounset
 shopt -s lastpipe
 
 main () {
-    long_lines_filter="................................" # 32 characters
-    long_lines_filter="${long_lines_filter}${long_lines_filter}" # 64
-    long_lines_filter="${long_lines_filter}${long_lines_filter}" # 128
-    long_lines_filter="${long_lines_filter}${long_lines_filter}" # 256
-    long_lines_filter="${long_lines_filter}${long_lines_filter}" # 512
-    long_lines_filter="${long_lines_filter}${long_lines_filter}" # 1024
+    LL="................................"         # 32 characters
+    LL="${LL}${LL}${LL}${LL}${LL}${LL}${LL}${LL}" # 256
+    long_lines_filter="${LL}${LL}${LL}${LL}"      # 1024
 
     declare -a -g include=()
     declare -a -g grep_binary=(-I)

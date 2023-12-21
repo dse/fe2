@@ -321,7 +321,7 @@ fe [<option> ...] [<grep options and arguments> ...]
    --quasi, --office    allow office files, etc.
    --allow=<files>      removed specified exclusion
    -.<ext>              include ONLY specified files (also un-excludes)
-                            -.html, -.js, -.css include multiple extensions
+       -.html, -.js, -.css      include multiple extensions
    --all                remove all exclusions (except binaries)
    --all --all          " but also allow binaries too
    --all --all --all    " but also grep binary files as text

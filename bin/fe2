@@ -53,6 +53,7 @@ main () {
                 unset OPTARG
             fi
         fi
+
         case "${OPTION}" in
 
             # control exclusions
@@ -98,6 +99,14 @@ main () {
                         unexclude "*.${OPTARG}"
                         ;;
                 esac
+                ;;
+            include)
+                if [[ ! -v OPTARG ]] ; then
+                    echo "option requires argument -- ${OPTION}" >&2
+                    exit 1
+                fi
+                include+=(--include="${OPTARG}")
+                unexclude "${OPTARG}"
                 ;;
             allow)              # --allow='*.tmp'
                 if [[ ! -v OPTARG ]] ; then
@@ -184,12 +193,12 @@ main () {
         "${exclude_dir__vendor[@]}"
         "${exclude_dir__vcs[@]}"
         "${exclude_dir__cache[@]}"
+        "${include[@]}"
         "${exclude__backup[@]}"
         "${exclude__temp[@]}"
         "${exclude__bloat[@]}"
         "${exclude__cache[@]}"
         "${exclude__quasi[@]}"
-        "${include[@]}"
         "${grep_binary[@]}"
         -r "$@"
     )

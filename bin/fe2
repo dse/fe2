@@ -11,7 +11,6 @@ main () {
     long_lines_filter="${long_lines_filter}${long_lines_filter}" # 512
     long_lines_filter="${long_lines_filter}${long_lines_filter}" # 1024
 
-    set_default_excludes
     declare -a -g include=()
     declare -a -g grep_binary=(-I)
 
@@ -245,71 +244,69 @@ unexclude_from () {
     var=("${temp_array[@]}")
 }
 
-set_default_excludes () {
-    declare -a -g exclude_dir__vendor=(
-        --exclude-dir='node_modules'
-        --exclude-dir='vendor'
-    )
-    declare -a -g exclude_dir__vcs=(
-        --exclude-dir='.git'
-        --exclude-dir='.svn'
-        --exclude-dir='SCCS'
-        --exclude-dir='RCS'
-        --exclude-dir='CVS'
-        --exclude-dir='MCVS'
-        --exclude-dir='.src'
-        --exclude-dir='.hg'
-        --exclude-dir='.bzr'
-        --exclude-dir='_MTN'
-        --exclude-dir='_darcs'
-        --exclude-dir='{arch}'
-    )
-    declare -a -g exclude_dir__cache=(
-        --exclude-dir='.cache'
-        --exclude-dir='npm-cache'
-        --exclude-dir='.sass-cache'
-        --exclude-dir='zip-cache'
-        --exclude-dir='.cpan'
-    )
-    declare -a -g exclude__backup=(
-        --exclude='*~'
-        --exclude='#*#'
-        --exclude='*.bak'
-        --exclude='*.bak.*'
-        --exclude='*.old'
-        --exclude='*.old.*'
-        --exclude='*.orig'
-        --exclude='*.orig.*'
-        --exclude='*-orig'
-        --exclude='*-orig.*'
-    )
-    declare -a -g exclude__temp=(
-        --exclude='*.tmp'
-        --exclude='*.tmp.*'
-    )
-    declare -a -g exclude__bloat=(
-        --exclude='*.min'
-        --exclude='*.min.*'
-        --exclude='*.map'
-        --exclude='*.map.*'
-        --exclude='composer.lock'
-        --exclude='yarn.lock'
-        --exclude='package-lock.json'
-        --exclude='*.bundle.js'
-        --exclude='*.chunk.js'
-    )
-    declare -a -g exclude__cache=(
-        --exclude='projectile.cache' # emacs
-        --exclude='ido.last'         # emacs
-    )
-    declare -a -g exclude__quasi=(
-        --exclude='*.xls'
-        --exclude='*.doc'
-        --exclude='*.ppt'
-        --exclude='*.pdf'
-        --exclude='*.ps'
-    )
-}
+declare -a exclude_dir__vendor=(
+    --exclude-dir='node_modules'
+    --exclude-dir='vendor'
+)
+declare -a exclude_dir__vcs=(
+    --exclude-dir='.git'
+    --exclude-dir='.svn'
+    --exclude-dir='SCCS'
+    --exclude-dir='RCS'
+    --exclude-dir='CVS'
+    --exclude-dir='MCVS'
+    --exclude-dir='.src'
+    --exclude-dir='.hg'
+    --exclude-dir='.bzr'
+    --exclude-dir='_MTN'
+    --exclude-dir='_darcs'
+    --exclude-dir='{arch}'
+)
+declare -a exclude_dir__cache=(
+    --exclude-dir='.cache'
+    --exclude-dir='npm-cache'
+    --exclude-dir='.sass-cache'
+    --exclude-dir='zip-cache'
+    --exclude-dir='.cpan'
+)
+declare -a exclude__backup=(
+    --exclude='*~'
+    --exclude='#*#'
+    --exclude='*.bak'
+    --exclude='*.bak.*'
+    --exclude='*.old'
+    --exclude='*.old.*'
+    --exclude='*.orig'
+    --exclude='*.orig.*'
+    --exclude='*-orig'
+    --exclude='*-orig.*'
+)
+declare -a exclude__temp=(
+    --exclude='*.tmp'
+    --exclude='*.tmp.*'
+)
+declare -a exclude__bloat=(
+    --exclude='*.min'
+    --exclude='*.min.*'
+    --exclude='*.map'
+    --exclude='*.map.*'
+    --exclude='composer.lock'
+    --exclude='yarn.lock'
+    --exclude='package-lock.json'
+    --exclude='*.bundle.js'
+    --exclude='*.chunk.js'
+)
+declare -a exclude__cache=(
+    --exclude='projectile.cache' # emacs
+    --exclude='ido.last'         # emacs
+)
+declare -a exclude__quasi=(
+    --exclude='*.xls'
+    --exclude='*.doc'
+    --exclude='*.ppt'
+    --exclude='*.pdf'
+    --exclude='*.ps'
+)
 
 help () { cat <<EOF; }
 fe [<option> ...] [<grep options and arguments> ...]

@@ -119,11 +119,7 @@ main () {
                 unexclude "${OPTARG}"
                 ;;
             grep)               # --grep or --grep=<grep>
-                if [[ -v OPTARG ]] && [[ "$OPTARG" != "" ]] ; then
-                    grep=${OPTARG}
-                else
-                    grep=grep
-                fi
+                grep="${OPTARG:-grep}"
                 ;;
             help)
                 help
@@ -188,23 +184,21 @@ main () {
     if (( opt_find )) ; then
         # List files that would be searched; ignore grep options and
         # arguments specified on command line
-        set -- -l -e '^$' -e '.' "$@"
+        set -- -l -e '^'
     fi
 
-    declare -a -g grep_command=(
-        $grep
-        "${exclude_dir__vendor[@]}"
-        "${exclude_dir__vcs[@]}"
-        "${exclude_dir__cache[@]}"
-        "${include[@]}"
-        "${exclude__backup[@]}"
-        "${exclude__temp[@]}"
-        "${exclude__bloat[@]}"
-        "${exclude__cache[@]}"
-        "${exclude__quasi[@]}"
-        "${grep_binary[@]}"
-        -r "$@"
-    )
+    declare -a -g grep_command=($grep
+                                "${exclude_dir__vendor[@]}"
+                                "${exclude_dir__vcs[@]}"
+                                "${exclude_dir__cache[@]}"
+                                "${include[@]}"
+                                "${exclude__backup[@]}"
+                                "${exclude__temp[@]}"
+                                "${exclude__bloat[@]}"
+                                "${exclude__cache[@]}"
+                                "${exclude__quasi[@]}"
+                                "${grep_binary[@]}"
+                                -r "$@")
 
     declare -a -g long_lines_cmd=(
         grep -v "${long_lines_filter}"

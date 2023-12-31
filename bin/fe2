@@ -181,7 +181,7 @@ main () {
     if (( opt_find )) ; then
         # List files that would be searched; ignore grep options and
         # arguments specified on command line
-        set -- -l -e '^'
+        set -- -l -e ''
     fi
 
     declare -a -g grep_command=($grep
